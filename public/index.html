@@ -22,7 +22,14 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
 .ws-dot.error { background: #f85149; box-shadow: 0 0 6px #f8514988; }
 .ws-dot.stopped { background: #484f58; }
 .ws-dot.unknown { background: #484f58; }
-.ws-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.ws-toggle { width: 36px; height: 20px; border-radius: 10px; border: none; cursor: pointer; position: relative; flex-shrink: 0; transition: background 0.2s; outline: none; }
+.ws-toggle.on { background: #238636; }
+.ws-toggle.off { background: #484f58; }
+.ws-toggle::after { content: ''; position: absolute; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left 0.2s; }
+.ws-toggle.on::after { left: 18px; }
+.ws-toggle.off::after { left: 2px; }
+.ws-toggle:hover { opacity: 0.85; }
 
 /* Main panel */
 #main { flex: 1; display: flex; flex-direction: column; }
@@ -34,7 +41,9 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
 /* Log stream */
 #log-container { flex: 1; overflow-y: auto; padding: 12px 20px; background: #010409; }
 #log-output div { white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6; color: #fff; font-weight: 500; }
-#log-output div.user-msg { color: #58a6ff; margin-top: 16px; margin-bottom: 8px; font-weight: 600; }
+#log-output div.user-msg { color: #58a6ff; margin-top: 16px; margin-bottom: 8px; font-weight: 700; }
+#log-output div.agent-msg { color: #3fb950; margin-top: 16px; margin-bottom: 8px; font-weight: 700; }
+#log-output div.assistant-msg { color: #fff; font-weight: 400; }
 #log-output div.debug-line { color: #30363d; font-weight: 400; font-size: 10px; }
 
 /* Input bar */
@@ -118,7 +127,32 @@ function renderWorkspaces(workspaces) {
     const tab = document.createElement('div');
     tab.className = 'ws-tab' + (ws.id === activeId ? ' active' : '');
     const status = ws.status || (ws.running ? 'unknown' : 'stopped');
-    tab.innerHTML = `<span class="ws-dot ${status}"></span><span class="ws-name">${esc(ws.name || ws.id)}</span>`;
+    const isOn = ws.enabled !== false && ws.running !== false;
+
+    const dot = document.createElement('span');
+    dot.className = 'ws-dot ' + status;
+
+    const name = document.createElement('span');
+    name.className = 'ws-name';
+    name.textContent = ws.name || ws.id;
+
+    const toggle = document.createElement('button');
+    toggle.className = 'ws-toggle ' + (isOn ? 'on' : 'off');
+    toggle.title = isOn ? 'Stop' : 'Start';
+    toggle.onclick = async (e) => {
+      e.stopPropagation();
+      toggle.disabled = true;
+      const action = isOn ? 'stop' : 'start';
+      try {
+        await fetch(`/api/workspaces/${ws.id}/${action}`, { method: 'POST' });
+      } catch {}
+      toggle.disabled = false;
+      fetchWorkspaces();
+    };
+
+    tab.appendChild(dot);
+    tab.appendChild(name);
+    tab.appendChild(toggle);
     tab.onclick = () => selectWorkspace(ws);
     workspaceList.appendChild(tab);
     // Update header dot if this is the active workspace
@@ -189,11 +223,20 @@ function connectSSE(id, clearHistory) {
 function appendLog(text, isDebug) {
   const atBottom = logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight < 40;
   const el = document.createElement('div');
-  el.textContent = text;
   if (text.startsWith('▶ You:')) {
+    el.textContent = text;
     el.className = 'user-msg';
+  } else if (text.startsWith('▶ ')) {
+    el.textContent = text;
+    el.className = 'agent-msg';
+  } else if (text.startsWith('◀ ')) {
+    el.textContent = text.slice(2);
+    el.className = 'assistant-msg';
   } else if (isDebug) {
+    el.textContent = text;
     el.className = 'debug-line';
+  } else {
+    el.textContent = text;
   }
   logOutput.appendChild(el);
   if (atBottom) logContainer.scrollTop = logContainer.scrollHeight;
