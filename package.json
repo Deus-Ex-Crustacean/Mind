@@ -1,0 +1,8 @@
+{
+  "name": "mind",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "deus-ex-synapse": "github:Deus-Ex-Crustacean/Synapse"
+  }
+}

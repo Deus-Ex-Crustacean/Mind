@@ -1,0 +1,15 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "mind",
+      "dependencies": {
+        "deus-ex-synapse": "github:Deus-Ex-Crustacean/Synapse",
+      },
+    },
+  },
+  "packages": {
+    "deus-ex-synapse": ["deus-ex-synapse@github:Deus-Ex-Crustacean/Synapse#10ccf90", {}, "Deus-Ex-Crustacean-Synapse-10ccf90", "sha512-H7VsIsIFqZmpRE/0GWJKr7y51hod3dEB9iD1c3yqtYRfrF6UTubO0B3VstOjioZ23i8JoRngF0CSdrW414errw=="],
+  }
+}
