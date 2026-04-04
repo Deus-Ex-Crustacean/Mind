@@ -41,10 +41,10 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
 /* Log stream */
 #log-container { flex: 1; overflow-y: auto; padding: 12px 20px; background: #010409; }
 #log-output div { white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6; color: #fff; font-weight: 500; }
-#log-output div.user-msg { color: #58a6ff; margin-top: 16px; margin-bottom: 8px; font-weight: 700; }
-#log-output div.agent-msg { color: #3fb950; margin-top: 16px; margin-bottom: 8px; font-weight: 700; }
-#log-output div.assistant-msg { color: #fff; font-weight: 400; }
-#log-output div.debug-line { color: #30363d; font-weight: 400; font-size: 10px; }
+#log-output div.user-msg { color: #58a6ff; font-weight: 600; margin-top: 16px; margin-bottom: 4px; }
+#log-output div.dm-msg { color: #3fb950; font-weight: 600; margin-top: 16px; margin-bottom: 4px; }
+#log-output div.agent-msg { color: #e6edf3; font-weight: 400; }
+#log-output div.debug-line { color: #30363d; font-size: 10px; font-weight: 400; }
 
 /* Input bar */
 #input-bar { padding: 12px 20px; border-top: 1px solid #30363d; display: flex; gap: 10px; }
@@ -193,7 +193,7 @@ async function loadHistory(id) {
     for (const line of text.split('\n')) {
       if (!line) continue;
       seenLines.add(line);
-      appendLog(line, isDebugLine(line));
+      appendLog(line);
     }
   } catch {}
 }
@@ -210,7 +210,7 @@ function connectSSE(id, clearHistory) {
   eventSource.onmessage = (e) => {
     if (seenLines.has(e.data)) return;
     seenLines.add(e.data);
-    appendLog(e.data, isDebugLine(e.data));
+    appendLog(e.data);
   };
   eventSource.onerror = () => {
     eventSource.close();
@@ -220,21 +220,21 @@ function connectSSE(id, clearHistory) {
   };
 }
 
-function appendLog(text, isDebug) {
+function appendLog(text) {
   const atBottom = logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight < 40;
   const el = document.createElement('div');
-  if (text.startsWith('▶ You:') || text.startsWith('▶ Prompt:')) {
-    el.textContent = text;
+  if (text.startsWith('▶ Prompt:') || text.startsWith('▶ You:')) {
     el.className = 'user-msg';
+    el.textContent = text;
   } else if (text.startsWith('▶ ')) {
+    el.className = 'dm-msg';
     el.textContent = text;
-    el.className = 'agent-msg';
   } else if (text.startsWith('◀ ')) {
+    el.className = 'agent-msg';
     el.textContent = text.slice(2);
-    el.className = 'assistant-msg';
-  } else if (isDebug) {
-    el.textContent = text;
+  } else if (text.startsWith('[synapse]')) {
     el.className = 'debug-line';
+    el.textContent = text;
   } else {
     el.textContent = text;
   }
