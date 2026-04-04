@@ -221,6 +221,17 @@ function connectSSE(id, clearHistory) {
 }
 
 function appendLog(text) {
+  // Only show user prompts, DMs from agents, and agent responses — skip everything else
+  if (text.startsWith('▶ Prompt:') || text.startsWith('▶ You:')) {
+    // user prompt
+  } else if (text.startsWith('▶ ')) {
+    // DM from agent
+  } else if (text.startsWith('◀ ')) {
+    // agent response
+  } else {
+    return; // skip all other lines
+  }
+
   const atBottom = logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight < 40;
   const el = document.createElement('div');
   if (text.startsWith('▶ Prompt:') || text.startsWith('▶ You:')) {
@@ -232,11 +243,6 @@ function appendLog(text) {
   } else if (text.startsWith('◀ ')) {
     el.className = 'agent-msg';
     el.textContent = text.slice(2);
-  } else if (text.startsWith('[synapse]')) {
-    el.className = 'debug-line';
-    el.textContent = text;
-  } else {
-    el.textContent = text;
   }
   logOutput.appendChild(el);
   if (atBottom) logContainer.scrollTop = logContainer.scrollHeight;
