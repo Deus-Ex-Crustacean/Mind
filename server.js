@@ -1,4 +1,5 @@
 import LaunchDarkly from "@launchdarkly/node-server-sdk";
+import { Observability } from "@launchdarkly/observability-node";
 
 const PORT = process.env.PORT || 4300;
 const HIVE_URL = (process.env.HIVE_URL || "http://localhost:3000").replace(/\/$/, "");
@@ -55,6 +56,34 @@ const server = Bun.serve({
       });
     }
 
+    // Proxy: POST /api/workspaces/:id/start
+    const startMatch = path.match(/^\/api\/workspaces\/([^/]+)\/start$/);
+    if (startMatch && req.method === "POST") {
+      const id = startMatch[1];
+      const res = await fetch(`${HIVE_URL}/workspaces/${id}/start`, {
+        method: "POST",
+        headers: hiveHeaders(),
+      });
+      return new Response(res.body, {
+        status: res.status,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Proxy: POST /api/workspaces/:id/stop
+    const stopMatch = path.match(/^\/api\/workspaces\/([^/]+)\/stop$/);
+    if (stopMatch && req.method === "POST") {
+      const id = stopMatch[1];
+      const res = await fetch(`${HIVE_URL}/workspaces/${id}/stop`, {
+        method: "POST",
+        headers: hiveHeaders(),
+      });
+      return new Response(res.body, {
+        status: res.status,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     // Proxy: POST /api/workspaces/:id/message
     const msgMatch = path.match(/^\/api\/workspaces\/([^/]+)\/message$/);
     if (msgMatch && req.method === "POST") {
@@ -94,7 +123,9 @@ function hiveHeaders() {
 }
 
 // LaunchDarkly initialization
-const ldClient = LaunchDarkly.init("sdk-699cdf13-faef-4bf9-99dc-1dd8972f1fa9");
+const ldClient = LaunchDarkly.init("sdk-699cdf13-faef-4bf9-99dc-1dd8972f1fa9", {
+  plugins: [new Observability()],
+});
 const ldContext = { kind: "service", key: "mind", name: "Mind" };
 
 ldClient.on("ready", () => {
