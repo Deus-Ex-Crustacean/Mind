@@ -56,6 +56,12 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
 #debug-section.open { display: block; }
 #debug-section pre { font-size: 11px; line-height: 1.4; color: #484f58; white-space: pre-wrap; word-break: break-all; }
 
+/* Copy button */
+#log-container { position: relative; }
+#copy-log-btn { position: absolute; top: 8px; right: 8px; background: #161b22; border: 1px solid #30363d; border-radius: 4px; color: #484f58; cursor: pointer; padding: 4px 6px; font-size: 14px; line-height: 1; opacity: 0; transition: opacity 0.15s; z-index: 1; }
+#log-container:hover #copy-log-btn { opacity: 1; }
+#copy-log-btn:hover { color: #c9d1d9; border-color: #484f58; }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -73,7 +79,7 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
   <div id="main-empty">Select a workspace</div>
   <div id="workspace-view">
     <div id="ws-header"><span class="ws-dot" id="ws-header-dot"></span><span id="ws-header-name"></span></div>
-    <div id="log-container"><div id="log-output"></div></div>
+    <div id="log-container"><button id="copy-log-btn" title="Copy log">&#x1f4cb;</button><div id="log-output"></div></div>
 
     <div id="input-bar">
       <input id="msg-input" type="text" placeholder="Send a message…" autocomplete="off">
@@ -231,6 +237,20 @@ sendBtn.onclick = sendMessage;
 msgInput.onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
 
 function esc(s) { const d = document.createElement('span'); d.textContent = s; return d.innerHTML; }
+
+// Auto-focus message input on keydown
+document.addEventListener('keydown', (e) => {
+  if (e.target === msgInput) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key.length === 1) msgInput.focus();
+});
+
+// Copy log to clipboard
+document.getElementById('copy-log-btn').onclick = () => {
+  const text = logOutput.innerText;
+  navigator.clipboard.writeText(text);
+};
 
 fetchWorkspaces();
 setInterval(fetchWorkspaces, 5000);
