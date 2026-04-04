@@ -10,6 +10,6 @@
     },
   },
   "packages": {
-    "deus-ex-synapse": ["deus-ex-synapse@github:Deus-Ex-Crustacean/Synapse#10ccf90", {}, "Deus-Ex-Crustacean-Synapse-10ccf90", "sha512-H7VsIsIFqZmpRE/0GWJKr7y51hod3dEB9iD1c3yqtYRfrF6UTubO0B3VstOjioZ23i8JoRngF0CSdrW414errw=="],
+    "deus-ex-synapse": ["deus-ex-synapse@github:Deus-Ex-Crustacean/Synapse#918ce42", {}, "Deus-Ex-Crustacean-Synapse-918ce42", "sha512-VUs6R0kaLPh/NgeAp8VZe0lJKXZDqTwUgfY6YZnbs93rI4otp2BrbBQZCu7vV1tCcqnuCIU5V75M2KixmkVTjA=="],
   }
 }

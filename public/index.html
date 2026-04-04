@@ -122,24 +122,30 @@ function selectWorkspace(ws) {
   workspaceView.style.display = 'flex';
   wsHeaderName.textContent = ws.name || ws.id;
   wsHeaderDot.className = 'ws-dot ' + (running ? 'running' : 'stopped');
-  logOutput.innerHTML = '';
-  document.getElementById('debug-output').textContent = '';
-
   // Mark active tab
   document.querySelectorAll('.ws-tab').forEach((t, i) => t.classList.toggle('active', t.querySelector('.ws-name').textContent === (ws.name || ws.id)));
 
-  connectSSE(ws.id);
+  connectSSE(ws.id, true);
 }
 
-const debugPatterns = [/synapse/i, /reconnect/i, /heartbeat/i, /ping/i, /pong/i];
 function isDebugLine(text) {
-  return debugPatterns.some(p => p.test(text));
+  // Any line starting with a timestamp bracket is synapse plumbing
+  if (/^\[20\d\d-/.test(text)) return true;
+  return false;
 }
 
-function connectSSE(id) {
+const seenLines = new Set();
+function connectSSE(id, clearHistory) {
   if (eventSource) eventSource.close();
+  if (clearHistory) {
+    seenLines.clear();
+    logOutput.innerHTML = '';
+    document.getElementById('debug-output').textContent = '';
+  }
   eventSource = new EventSource(`/api/workspaces/${id}/logs`);
   eventSource.onmessage = (e) => {
+    if (seenLines.has(e.data)) return;
+    seenLines.add(e.data);
     if (isDebugLine(e.data)) {
       appendDebug(e.data);
     } else {
@@ -150,7 +156,7 @@ function connectSSE(id) {
     eventSource.close();
     eventSource = null;
     // Reconnect after 2s
-    setTimeout(() => { if (activeId === id) connectSSE(id); }, 2000);
+    setTimeout(() => { if (activeId === id) connectSSE(id, false); }, 2000);
   };
 }
 
@@ -180,12 +186,17 @@ async function sendMessage() {
   sendBtn.disabled = true;
   msgInput.value = '';
   try {
-    await fetch(`/api/workspaces/${activeId}/message`, {
+    const res = await fetch(`/api/workspaces/${activeId}/message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: msg }),
     });
-  } catch {}
+    if (!res.ok) {
+      appendLog(`✗ Failed to send: ${res.status}`);
+    }
+  } catch (e) {
+    appendLog(`✗ Failed to send: ${e.message}`);
+  }
   sendBtn.disabled = false;
   msgInput.focus();
 }
