@@ -223,7 +223,7 @@ function connectSSE(id, clearHistory) {
 function appendLog(text, isDebug) {
   const atBottom = logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight < 40;
   const el = document.createElement('div');
-  if (text.startsWith('▶ You:')) {
+  if (text.startsWith('▶ You:') || text.startsWith('▶ Prompt:')) {
     el.textContent = text;
     el.className = 'user-msg';
   } else if (text.startsWith('▶ ')) {
