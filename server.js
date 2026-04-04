@@ -19,6 +19,23 @@ const server = Bun.serve({
       });
     }
 
+    // GET /api/workspaces/:id/history — full synapse.log file
+    const histMatch = path.match(/^\/api\/workspaces\/([^/]+)\/history$/);
+    if (histMatch && req.method === "GET") {
+      const id = histMatch[1];
+      // Get workspace path from Hive
+      const wsRes = await fetch(`${HIVE_URL}/workspaces/${id}`, { headers: hiveHeaders() });
+      if (!wsRes.ok) return new Response("Not found", { status: 404 });
+      const ws = await wsRes.json();
+      const logFile = Bun.file(`${ws.path}/synapse.log`);
+      if (await logFile.exists()) {
+        return new Response(await logFile.text(), {
+          headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" },
+        });
+      }
+      return new Response("", { headers: { "Content-Type": "text/plain" } });
+    }
+
     // Proxy: GET /api/workspaces/:id/logs (SSE)
     const logsMatch = path.match(/^\/api\/workspaces\/([^/]+)\/logs$/);
     if (logsMatch && req.method === "GET") {
@@ -55,7 +72,7 @@ const server = Bun.serve({
     // Static files from public/
     if (path === "/" || path === "/index.html") {
       return new Response(Bun.file("public/index.html"), {
-        headers: { "Content-Type": "text/html" },
+        headers: { "Content-Type": "text/html", "Cache-Control": "no-store" },
       });
     }
 
