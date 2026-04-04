@@ -123,7 +123,7 @@ function hiveHeaders() {
 }
 
 // LaunchDarkly initialization
-const ldClient = LaunchDarkly.init("sdk-fadd54c8-967d-40ac-8848-e75fe4f28cb6", {
+const ldClient = LaunchDarkly.init(process.env.LD_SDK_KEY, {
   plugins: [new Observability({ serviceName: "mind", environment: "production" })],
 });
 const ldContext = { kind: "service", key: "mind", name: "Mind" };
