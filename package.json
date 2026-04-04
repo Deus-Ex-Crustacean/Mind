@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "dependencies": {
+    "@launchdarkly/node-server-sdk": "^9.10.10",
     "deus-ex-synapse": "github:Deus-Ex-Crustacean/Synapse"
   }
 }

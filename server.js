@@ -1,3 +1,5 @@
+import LaunchDarkly from "@launchdarkly/node-server-sdk";
+
 const PORT = process.env.PORT || 4300;
 const HIVE_URL = (process.env.HIVE_URL || "http://localhost:3000").replace(/\/$/, "");
 const HIVE_ADMIN_TOKEN = process.env.HIVE_ADMIN_TOKEN || "";
@@ -90,5 +92,21 @@ function hiveHeaders() {
   if (HIVE_ADMIN_TOKEN) h["Authorization"] = `Bearer ${HIVE_ADMIN_TOKEN}`;
   return h;
 }
+
+// LaunchDarkly initialization
+const ldClient = LaunchDarkly.init("sdk-699cdf13-faef-4bf9-99dc-1dd8972f1fa9");
+const ldContext = { kind: "service", key: "mind", name: "Mind" };
+
+ldClient.on("ready", () => {
+  console.log("LaunchDarkly client ready");
+});
+
+ldClient.on("failed", (err) => {
+  console.error("LaunchDarkly client failed to initialize:", err);
+});
+
+process.on("exit", () => ldClient.close());
+process.on("SIGINT", () => { ldClient.close(); process.exit(0); });
+process.on("SIGTERM", () => { ldClient.close(); process.exit(0); });
 
 console.log(`Mind listening on http://localhost:${server.port}`);
