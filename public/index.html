@@ -16,8 +16,12 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
 .ws-tab:hover { background: #1c2128; }
 .ws-tab.active { background: #1f6feb22; border-left: 3px solid #58a6ff; }
 .ws-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ws-dot.idle { background: #58a6ff; box-shadow: 0 0 6px #58a6ff88; }
 .ws-dot.running { background: #3fb950; box-shadow: 0 0 6px #3fb95088; }
+.ws-dot.connecting { background: #d29922; box-shadow: 0 0 6px #d2992288; }
+.ws-dot.error { background: #f85149; box-shadow: 0 0 6px #f8514988; }
 .ws-dot.stopped { background: #484f58; }
+.ws-dot.unknown { background: #484f58; }
 .ws-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Main panel */
@@ -107,8 +111,8 @@ function renderWorkspaces(workspaces) {
   for (const ws of workspaces) {
     const tab = document.createElement('div');
     tab.className = 'ws-tab' + (ws.id === activeId ? ' active' : '');
-    const running = ws.status === 'running' || ws.running;
-    tab.innerHTML = `<span class="ws-dot ${running ? 'running' : 'stopped'}"></span><span class="ws-name">${esc(ws.name || ws.id)}</span>`;
+    const status = ws.status || (ws.running ? 'unknown' : 'stopped');
+    tab.innerHTML = `<span class="ws-dot ${status}"></span><span class="ws-name">${esc(ws.name || ws.id)}</span>`;
     tab.onclick = () => selectWorkspace(ws);
     workspaceList.appendChild(tab);
   }
@@ -117,11 +121,11 @@ function renderWorkspaces(workspaces) {
 function selectWorkspace(ws) {
   if (activeId === ws.id) return;
   activeId = ws.id;
-  const running = ws.status === 'running' || ws.running;
+  const status = ws.status || (ws.running ? 'unknown' : 'stopped');
   mainEmpty.style.display = 'none';
   workspaceView.style.display = 'flex';
   wsHeaderName.textContent = ws.name || ws.id;
-  wsHeaderDot.className = 'ws-dot ' + (running ? 'running' : 'stopped');
+  wsHeaderDot.className = 'ws-dot ' + status;
   // Mark active tab
   document.querySelectorAll('.ws-tab').forEach((t, i) => t.classList.toggle('active', t.querySelector('.ws-name').textContent === (ws.name || ws.id)));
 
