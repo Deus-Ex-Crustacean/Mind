@@ -86,6 +86,15 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
 #log-container:hover #copy-log-btn { opacity: 1; }
 #copy-log-btn:hover { color: #c9d1d9; border-color: #484f58; }
 
+/* Config panel */
+#config-panel { width: 220px; min-width: 220px; background: #161b22; border-left: 1px solid #30363d; display: none; flex-direction: column; padding: 16px; gap: 16px; }
+#config-panel.visible { display: flex; }
+#config-panel h3 { font-size: 11px; font-weight: 600; color: #58a6ff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+.config-field { display: flex; flex-direction: column; gap: 6px; }
+.config-field label { font-size: 11px; color: #8b949e; }
+.config-field select { background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-family: inherit; font-size: 12px; padding: 6px 8px; outline: none; cursor: pointer; }
+.config-field select:focus { border-color: #58a6ff; }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -113,8 +122,46 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
   </div>
 </div>
 
+<div id="config-panel">
+  <h3>Config</h3>
+  <div class="config-field">
+    <label>Model</label>
+    <select id="cfg-model">
+      <option value="haiku">haiku</option>
+      <option value="sonnet">sonnet</option>
+      <option value="opus">opus</option>
+    </select>
+  </div>
+  <div class="config-field">
+    <label>Effort</label>
+    <select id="cfg-effort">
+      <option value="low">low</option>
+      <option value="medium">medium</option>
+      <option value="high">high</option>
+      <option value="max">max</option>
+    </select>
+  </div>
+</div>
+
 <script>
 let activeId = null;
+let activeWs = null;
+
+const configPanel = document.getElementById('config-panel');
+const cfgModel = document.getElementById('cfg-model');
+const cfgEffort = document.getElementById('cfg-effort');
+
+async function saveConfig(field, value) {
+  if (!activeId) return;
+  await fetch(`/api/workspaces/${activeId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ [field]: value }),
+  });
+}
+
+cfgModel.onchange = () => saveConfig('model', cfgModel.value);
+cfgEffort.onchange = () => saveConfig('effort', cfgEffort.value);
 
 const workspaceList = document.getElementById('workspace-list');
 const mainEmpty = document.getElementById('main-empty');
@@ -180,6 +227,7 @@ function renderWorkspaces(workspaces) {
 function selectWorkspace(ws) {
   if (activeId === ws.id) return;
   activeId = ws.id;
+  activeWs = ws;
   const status = ws.status || (ws.running ? 'unknown' : 'stopped');
   mainEmpty.style.display = 'none';
   workspaceView.style.display = 'flex';
@@ -187,6 +235,11 @@ function selectWorkspace(ws) {
   wsHeaderDot.className = 'ws-dot ' + status;
   // Mark active tab
   document.querySelectorAll('.ws-tab').forEach((t, i) => t.classList.toggle('active', t.querySelector('.ws-name').textContent === (ws.name || ws.id)));
+
+  // Show config panel with workspace settings
+  configPanel.classList.add('visible');
+  cfgModel.value = ws.model || 'haiku';
+  cfgEffort.value = ws.effort || 'low';
 
   loadConversation(ws.id);
   startPolling(ws.id);

@@ -55,6 +55,22 @@ const server = Bun.serve({
       });
     }
 
+    // Proxy: PATCH /api/workspaces/:id
+    const patchMatch = path.match(/^\/api\/workspaces\/([^/]+)$/);
+    if (patchMatch && req.method === "PATCH") {
+      const id = patchMatch[1];
+      const body = await req.text();
+      const res = await fetch(`${HIVE_URL}/workspaces/${id}`, {
+        method: "PATCH",
+        headers: { ...hiveHeaders(), "Content-Type": "application/json" },
+        body,
+      });
+      return new Response(res.body, {
+        status: res.status,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     // Proxy: POST /api/workspaces/:id/start
     const startMatch = path.match(/^\/api\/workspaces\/([^/]+)\/start$/);
     if (startMatch && req.method === "POST") {
