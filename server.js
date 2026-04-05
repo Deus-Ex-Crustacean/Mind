@@ -18,7 +18,7 @@ const server = Bun.serve({
       });
       return new Response(res.body, {
         status: res.status,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
       });
     }
 

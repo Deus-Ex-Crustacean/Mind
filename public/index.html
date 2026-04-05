@@ -308,8 +308,27 @@ emergencyBtn.onclick = async () => {
   emergencyBtn.disabled = false;
   msgInput.focus();
 };
+const messageHistory = [];
+let historyIndex = -1;
+let historyDraft = '';
+
 msgInput.onkeydown = (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  if (e.key === 'ArrowUp' && msgInput.selectionStart === 0 && messageHistory.length > 0) {
+    e.preventDefault();
+    if (historyIndex === -1) historyDraft = msgInput.value;
+    if (historyIndex < messageHistory.length - 1) {
+      historyIndex++;
+      msgInput.value = messageHistory[messageHistory.length - 1 - historyIndex];
+      msgInput.style.height = 'auto'; msgInput.style.height = msgInput.scrollHeight + 'px';
+    }
+  }
+  if (e.key === 'ArrowDown' && msgInput.selectionEnd === msgInput.value.length && historyIndex >= 0) {
+    e.preventDefault();
+    historyIndex--;
+    msgInput.value = historyIndex >= 0 ? messageHistory[messageHistory.length - 1 - historyIndex] : historyDraft;
+    msgInput.style.height = 'auto'; msgInput.style.height = msgInput.scrollHeight + 'px';
+  }
 };
 msgInput.oninput = () => { msgInput.style.height = 'auto'; msgInput.style.height = msgInput.scrollHeight + 'px'; };
 
@@ -330,7 +349,7 @@ document.getElementById('copy-log-btn').onclick = () => {
 };
 
 fetchWorkspaces();
-setInterval(fetchWorkspaces, 5000);
+setInterval(fetchWorkspaces, 3000);
 </script>
 </body>
 </html>
