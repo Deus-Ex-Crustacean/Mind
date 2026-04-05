@@ -94,6 +94,8 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
 .config-field label { font-size: 11px; color: #8b949e; }
 .config-field select { background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-family: inherit; font-size: 12px; padding: 6px 8px; outline: none; cursor: pointer; }
 .config-field select:focus { border-color: #58a6ff; }
+.config-field input[type="number"] { background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #c9d1d9; font-family: inherit; font-size: 12px; padding: 6px 8px; outline: none; width: 100%; }
+.config-field input[type="number"]:focus { border-color: #58a6ff; }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
@@ -141,6 +143,26 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
       <option value="max">max</option>
     </select>
   </div>
+  <div class="config-field">
+    <label>Max Context Size</label>
+    <select id="cfg-max-context">
+      <option value="1">Mini (1)</option>
+      <option value="5">Small (5)</option>
+      <option value="10">Average (10)</option>
+      <option value="25">High (25)</option>
+      <option value="50">Very High (50)</option>
+      <option value="100">Max (100)</option>
+    </select>
+  </div>
+  <div class="config-field">
+    <label>Execution Delay</label>
+    <select id="cfg-execution-delay">
+      <option value="0">0 seconds</option>
+      <option value="10000">10 seconds</option>
+      <option value="60000" selected>1 minute</option>
+      <option value="300000">5 minutes</option>
+    </select>
+  </div>
 </div>
 
 <script>
@@ -150,6 +172,8 @@ let activeWs = null;
 const configPanel = document.getElementById('config-panel');
 const cfgModel = document.getElementById('cfg-model');
 const cfgEffort = document.getElementById('cfg-effort');
+const cfgMaxContext = document.getElementById('cfg-max-context');
+const cfgExecutionDelay = document.getElementById('cfg-execution-delay');
 
 async function saveConfig(field, value) {
   if (!activeId) return;
@@ -162,6 +186,20 @@ async function saveConfig(field, value) {
 
 cfgModel.onchange = () => saveConfig('model', cfgModel.value);
 cfgEffort.onchange = () => saveConfig('effort', cfgEffort.value);
+
+cfgMaxContext.onchange = () => saveConfig('maxContextSize', parseInt(cfgMaxContext.value, 10));
+
+cfgExecutionDelay.onchange = () => saveConfig('executionDelay', parseInt(cfgExecutionDelay.value, 10));
+
+function setExecutionDelayUI(val) {
+  cfgExecutionDelay.value = String(val ?? 60000);
+}
+
+function setMaxContextUI(val) {
+  const presets = ['1', '5', '10', '25', '50', '100'];
+  const strVal = String(val);
+  cfgMaxContext.value = presets.includes(strVal) ? strVal : '10';
+}
 
 const workspaceList = document.getElementById('workspace-list');
 const mainEmpty = document.getElementById('main-empty');
@@ -240,6 +278,8 @@ function selectWorkspace(ws) {
   configPanel.classList.add('visible');
   cfgModel.value = ws.model || 'haiku';
   cfgEffort.value = ws.effort || 'low';
+  setMaxContextUI(ws.maxContextSize);
+  setExecutionDelayUI(ws.executionDelay);
 
   loadConversation(ws.id);
   startPolling(ws.id);
@@ -252,7 +292,7 @@ function startPolling(id) {
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(() => {
     if (activeId === id) loadConversation(id, true);
-  }, 3000);
+  }, 300);
 }
 
 async function loadConversation(id, incremental) {
@@ -402,7 +442,7 @@ document.getElementById('copy-log-btn').onclick = () => {
 };
 
 fetchWorkspaces();
-setInterval(fetchWorkspaces, 3000);
+setInterval(fetchWorkspaces, 300);
 </script>
 </body>
 </html>
