@@ -41,10 +41,10 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
 /* Log stream */
 #log-container { flex: 1; overflow-y: auto; padding: 12px 20px; background: #010409; }
 #log-output div { white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6; color: #fff; font-weight: 500; }
-#log-output div.user-msg { color: #58a6ff; font-weight: 600; margin-top: 16px; margin-bottom: 4px; }
+#log-output div.prompt-msg { color: #58a6ff; font-weight: 600; margin-top: 16px; margin-bottom: 4px; }
 #log-output div.dm-msg { color: #3fb950; font-weight: 600; margin-top: 16px; margin-bottom: 4px; }
-#log-output div.agent-msg { color: #e6edf3; font-weight: 400; }
-#log-output div.debug-line { color: #30363d; font-size: 10px; font-weight: 400; }
+#log-output div.response-msg { color: #e6edf3; font-weight: 400; }
+#log-output div.system-msg { color: #484f58; font-size: 11px; font-weight: 400; font-style: italic; }
 
 /* Input bar */
 #input-bar { padding: 12px 20px; border-top: 1px solid #30363d; display: flex; gap: 10px; }
@@ -185,79 +185,81 @@ function isDebugLine(text) {
 
 async function loadHistory(id) {
   logOutput.innerHTML = '';
-  seenLines.clear();
+  seenTimestamps.clear();
   try {
-    const res = await fetch(`/api/workspaces/${id}/history`);
+    const res = await fetch(`/api/workspaces/${id}/conversation`);
     if (!res.ok) return;
-    const text = await res.text();
-    for (const line of text.split('\n')) {
-      if (!line) continue;
-      seenLines.add(line);
-      appendLog(line);
+    const entries = await res.json();
+    for (const entry of entries) {
+      seenTimestamps.add(entry.timestamp);
+      appendConversationEntry(entry);
     }
   } catch {}
 }
 
-const seenLines = new Set();
+const seenTimestamps = new Set();
 function connectSSE(id, clearHistory) {
   if (eventSource) eventSource.close();
   if (clearHistory) {
-    seenLines.clear();
+    seenTimestamps.clear();
     logOutput.innerHTML = '';
-    document.getElementById('debug-output').textContent = '';
   }
   eventSource = new EventSource(`/api/workspaces/${id}/logs`);
   eventSource.onmessage = (e) => {
-    if (seenLines.has(e.data)) return;
-    seenLines.add(e.data);
-    appendLog(e.data);
+    // Try to parse as conversation.json entry
+    try {
+      const entry = JSON.parse(e.data);
+      if (entry.timestamp && !seenTimestamps.has(entry.timestamp)) {
+        seenTimestamps.add(entry.timestamp);
+        appendConversationEntry(entry);
+        return;
+      }
+    } catch {}
+    // Fallback: legacy plain-text SSE lines
+    appendLegacyLog(e.data);
   };
   eventSource.onerror = () => {
     eventSource.close();
     eventSource = null;
-    // Reconnect after 2s
     setTimeout(() => { if (activeId === id) connectSSE(id, false); }, 2000);
   };
 }
 
-function appendLog(text) {
-  // Only show user prompts, DMs from agents, and agent responses — skip everything else
-  if (text.startsWith('▶ Prompt:') || text.startsWith('▶ You:')) {
-    // user prompt
-  } else if (text.startsWith('▶ ')) {
-    // DM from agent
-  } else if (text.startsWith('◀ ')) {
-    // agent response
-  } else {
-    return; // skip all other lines
-  }
+function appendConversationEntry(entry) {
+  const atBottom = logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight < 40;
+  const el = document.createElement('div');
+  const typeClassMap = { prompt: 'prompt-msg', dm: 'dm-msg', response: 'response-msg', system: 'system-msg' };
+  el.className = typeClassMap[entry.type] || 'response-msg';
+  const prefix = entry.from && entry.type !== 'system' ? `[${entry.from}] ` : '';
+  el.textContent = prefix + entry.message;
+  logOutput.appendChild(el);
+  if (atBottom) logContainer.scrollTop = logContainer.scrollHeight;
+}
 
+function appendLegacyLog(text) {
+  if (text.startsWith('▶ Prompt:') || text.startsWith('▶ You:')) {
+    // prompt
+  } else if (text.startsWith('▶ ')) {
+    // dm
+  } else if (text.startsWith('◀ ')) {
+    // response
+  } else {
+    return;
+  }
   const atBottom = logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight < 40;
   const el = document.createElement('div');
   if (text.startsWith('▶ Prompt:') || text.startsWith('▶ You:')) {
-    el.className = 'user-msg';
+    el.className = 'prompt-msg';
     el.textContent = text;
   } else if (text.startsWith('▶ ')) {
     el.className = 'dm-msg';
     el.textContent = text;
   } else if (text.startsWith('◀ ')) {
-    el.className = 'agent-msg';
+    el.className = 'response-msg';
     el.textContent = text.slice(2);
   }
   logOutput.appendChild(el);
   if (atBottom) logContainer.scrollTop = logContainer.scrollHeight;
-}
-
-function appendDebug(text) {
-  const pre = document.getElementById('debug-output');
-  pre.textContent += text + '\n';
-}
-
-function toggleDebug() {
-  const section = document.getElementById('debug-section');
-  const btn = document.getElementById('debug-toggle');
-  section.classList.toggle('open');
-  btn.textContent = section.classList.contains('open') ? 'Hide debug logs' : 'Show debug logs';
 }
 
 async function sendMessage() {
@@ -272,10 +274,10 @@ async function sendMessage() {
       body: JSON.stringify({ message: msg }),
     });
     if (!res.ok) {
-      appendLog(`✗ Failed to send: ${res.status}`);
+      appendConversationEntry({ type: 'system', from: 'system', message: `✗ Failed to send: ${res.status}` });
     }
   } catch (e) {
-    appendLog(`✗ Failed to send: ${e.message}`);
+    appendConversationEntry({ type: 'system', from: 'system', message: `✗ Failed to send: ${e.message}` });
   }
   sendBtn.disabled = false;
   msgInput.focus();

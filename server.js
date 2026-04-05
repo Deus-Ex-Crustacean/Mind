@@ -22,21 +22,20 @@ const server = Bun.serve({
       });
     }
 
-    // GET /api/workspaces/:id/history — full synapse.log file
-    const histMatch = path.match(/^\/api\/workspaces\/([^/]+)\/history$/);
-    if (histMatch && req.method === "GET") {
-      const id = histMatch[1];
-      // Get workspace path from Hive
+    // GET /api/workspaces/:id/conversation — conversation.json
+    const convMatch = path.match(/^\/api\/workspaces\/([^/]+)\/conversation$/);
+    if (convMatch && req.method === "GET") {
+      const id = convMatch[1];
       const wsRes = await fetch(`${HIVE_URL}/workspaces/${id}`, { headers: hiveHeaders() });
       if (!wsRes.ok) return new Response("Not found", { status: 404 });
       const ws = await wsRes.json();
-      const logFile = Bun.file(`${ws.path}/synapse.log`);
-      if (await logFile.exists()) {
-        return new Response(await logFile.text(), {
-          headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" },
+      const convFile = Bun.file(`${ws.path}/conversation.json`);
+      if (await convFile.exists()) {
+        return new Response(await convFile.text(), {
+          headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
         });
       }
-      return new Response("", { headers: { "Content-Type": "text/plain" } });
+      return new Response("[]", { headers: { "Content-Type": "application/json" } });
     }
 
     // Proxy: GET /api/workspaces/:id/logs (SSE)
