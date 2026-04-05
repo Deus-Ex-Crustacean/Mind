@@ -54,6 +54,9 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
 .chat-meta .chat-sender.system-sender { color: #484f58; }
 .chat-body { white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.6; color: #c9d1d9; font-weight: 400; }
 .chat-entry.system-msg .chat-body { color: #484f58; font-size: 11px; font-style: italic; }
+#log-output .chat-entry.emergency-msg { border-left-color: #f85149; }
+#log-output .chat-entry.emergency-msg .chat-body { color: #f85149; font-style: italic; font-size: 11px; }
+#log-output .chat-entry.emergency-msg .chat-sender { color: #f85149; }
 
 /* Input bar */
 #input-bar { padding: 12px 20px; border-top: 1px solid #30363d; display: flex; gap: 10px; }
@@ -209,8 +212,9 @@ async function loadConversation(id, incremental) {
     if (!res.ok) return;
     const entries = await res.json();
     for (const entry of entries) {
-      if (seenTimestamps.has(entry.timestamp)) continue;
-      seenTimestamps.add(entry.timestamp);
+      const dedupKey = `${entry.timestamp}|${entry.type}|${entry.from}|${entry.message}`;
+      if (seenTimestamps.has(dedupKey)) continue;
+      seenTimestamps.add(dedupKey);
       appendConversationEntry(entry);
     }
   } catch {}
@@ -227,8 +231,10 @@ function appendConversationEntry(entry) {
   const typeClass = typeClassMap[entry.type] || 'response-msg';
   const senderClass = typeClass.replace('-msg', '-sender');
 
+  const isEmergency = entry.type === 'system' && entry.message && entry.message.startsWith('Emergency');
+
   const el = document.createElement('div');
-  el.className = 'chat-entry ' + typeClass;
+  el.className = 'chat-entry ' + (isEmergency ? 'emergency-msg' : typeClass);
 
   const meta = document.createElement('div');
   meta.className = 'chat-meta';
