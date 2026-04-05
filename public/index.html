@@ -60,7 +60,7 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
 
 /* Input bar */
 #input-bar { padding: 12px 20px; border-top: 1px solid #30363d; display: flex; gap: 10px; }
-#msg-input { flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px 14px; color: #c9d1d9; font-family: inherit; font-size: 13px; outline: none; }
+#msg-input { flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px 14px; color: #c9d1d9; font-family: inherit; font-size: 13px; outline: none; resize: none; overflow-y: hidden; line-height: 1.4; }
 #msg-input:focus { border-color: #58a6ff; }
 #send-btn { background: #238636; color: #fff; border: none; border-radius: 6px; padding: 10px 20px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600; }
 #send-btn:hover { background: #2ea043; }
@@ -106,7 +106,7 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
     <div id="log-container"><button id="copy-log-btn" title="Copy log">&#x1f4cb;</button><div id="log-output"></div></div>
 
     <div id="input-bar">
-      <input id="msg-input" type="text" placeholder="Send a message…" autocomplete="off">
+      <textarea id="msg-input" placeholder="Send a message…" rows="1"></textarea>
       <button id="send-btn">Send</button>
       <button id="emergency-btn">Emergency</button>
     </div>
@@ -265,6 +265,7 @@ async function sendMessage() {
   if (!msg || !activeId) return;
   sendBtn.disabled = true;
   msgInput.value = '';
+  msgInput.style.height = 'auto';
   try {
     const res = await fetch(`/api/workspaces/${activeId}/message`, {
       method: 'POST',
@@ -307,7 +308,10 @@ emergencyBtn.onclick = async () => {
   emergencyBtn.disabled = false;
   msgInput.focus();
 };
-msgInput.onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
+msgInput.onkeydown = (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+};
+msgInput.oninput = () => { msgInput.style.height = 'auto'; msgInput.style.height = msgInput.scrollHeight + 'px'; };
 
 function esc(s) { const d = document.createElement('span'); d.textContent = s; return d.innerHTML; }
 
