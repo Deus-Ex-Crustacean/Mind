@@ -99,6 +99,22 @@ const server = Bun.serve({
       });
     }
 
+    // Proxy: POST /api/workspaces/:id/emergency
+    const emergencyMatch = path.match(/^\/api\/workspaces\/([^/]+)\/emergency$/);
+    if (emergencyMatch && req.method === "POST") {
+      const id = emergencyMatch[1];
+      const body = await req.text();
+      const res = await fetch(`${HIVE_URL}/workspaces/${id}/emergency`, {
+        method: "POST",
+        headers: { ...hiveHeaders(), "Content-Type": "application/json" },
+        body,
+      });
+      return new Response(res.body, {
+        status: res.status,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     // Static files from public/
     if (path === "/" || path === "/index.html") {
       return new Response(Bun.file("public/index.html"), {

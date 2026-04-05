@@ -62,6 +62,9 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
 #send-btn { background: #238636; color: #fff; border: none; border-radius: 6px; padding: 10px 20px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600; }
 #send-btn:hover { background: #2ea043; }
 #send-btn:disabled { opacity: 0.5; cursor: default; }
+#emergency-btn { background: #da3633; color: #fff; border: none; border-radius: 6px; padding: 10px 20px; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600; }
+#emergency-btn:hover { background: #f85149; }
+#emergency-btn:disabled { opacity: 0.5; cursor: default; }
 
 /* Message separator */
 .log-divider { border: none; border-top: 1px solid #30363d; margin: 12px 0; }
@@ -102,6 +105,7 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
     <div id="input-bar">
       <input id="msg-input" type="text" placeholder="Send a message…" autocomplete="off">
       <button id="send-btn">Send</button>
+      <button id="emergency-btn">Emergency</button>
     </div>
   </div>
 </div>
@@ -273,6 +277,30 @@ async function sendMessage() {
 }
 
 sendBtn.onclick = sendMessage;
+
+const emergencyBtn = document.getElementById('emergency-btn');
+emergencyBtn.onclick = async () => {
+  if (!activeId) return;
+  let msg = msgInput.value.trim();
+  if (!msg) msg = prompt('Emergency message:');
+  if (!msg) return;
+  emergencyBtn.disabled = true;
+  msgInput.value = '';
+  try {
+    const res = await fetch(`/api/workspaces/${activeId}/emergency`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg }),
+    });
+    if (!res.ok) {
+      appendConversationEntry({ type: 'system', from: 'system', message: `✗ Emergency failed: ${res.status}`, timestamp: Date.now() });
+    }
+  } catch (e) {
+    appendConversationEntry({ type: 'system', from: 'system', message: `✗ Emergency failed: ${e.message}`, timestamp: Date.now() });
+  }
+  emergencyBtn.disabled = false;
+  msgInput.focus();
+};
 msgInput.onkeydown = (e) => { if (e.key === 'Enter') sendMessage(); };
 
 function esc(s) { const d = document.createElement('span'); d.textContent = s; return d.innerHTML; }
