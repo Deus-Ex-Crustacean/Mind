@@ -40,11 +40,20 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
 
 /* Log stream */
 #log-container { flex: 1; overflow-y: auto; padding: 12px 20px; background: #010409; }
-#log-output div { white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.6; color: #fff; font-weight: 500; }
-#log-output div.prompt-msg { color: #58a6ff; font-weight: 600; margin-top: 16px; margin-bottom: 4px; }
-#log-output div.dm-msg { color: #3fb950; font-weight: 600; margin-top: 16px; margin-bottom: 4px; }
-#log-output div.response-msg { color: #e6edf3; font-weight: 400; }
-#log-output div.system-msg { color: #484f58; font-size: 11px; font-weight: 400; font-style: italic; }
+#log-output .chat-entry { padding: 8px 12px; margin-bottom: 12px; border-radius: 6px; background: #161b22; border-left: 3px solid #30363d; }
+#log-output .chat-entry.prompt-msg { border-left-color: #58a6ff; }
+#log-output .chat-entry.dm-msg { border-left-color: #3fb950; }
+#log-output .chat-entry.response-msg { border-left-color: #e6edf3; }
+#log-output .chat-entry.system-msg { border-left-color: #484f58; background: transparent; }
+.chat-meta { font-size: 11px; margin-bottom: 4px; }
+.chat-meta .chat-time { color: #484f58; margin-right: 6px; }
+.chat-meta .chat-sender { font-weight: 700; }
+.chat-meta .chat-sender.prompt-sender { color: #58a6ff; }
+.chat-meta .chat-sender.dm-sender { color: #3fb950; }
+.chat-meta .chat-sender.response-sender { color: #e6edf3; }
+.chat-meta .chat-sender.system-sender { color: #484f58; }
+.chat-body { white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.6; color: #c9d1d9; font-weight: 400; }
+.chat-entry.system-msg .chat-body { color: #484f58; font-size: 11px; font-style: italic; }
 
 /* Input bar */
 #input-bar { padding: 12px 20px; border-top: 1px solid #30363d; display: flex; gap: 10px; }
@@ -99,7 +108,6 @@ body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: #
 
 <script>
 let activeId = null;
-let eventSource = null;
 
 const workspaceList = document.getElementById('workspace-list');
 const mainEmpty = document.getElementById('main-empty');
@@ -173,91 +181,71 @@ function selectWorkspace(ws) {
   // Mark active tab
   document.querySelectorAll('.ws-tab').forEach((t, i) => t.classList.toggle('active', t.querySelector('.ws-name').textContent === (ws.name || ws.id)));
 
-  // Load full history then connect SSE for live updates
-  loadHistory(ws.id).then(() => connectSSE(ws.id, false));
+  loadConversation(ws.id);
+  startPolling(ws.id);
 }
 
-function isDebugLine(text) {
-  if (/^\[synapse\]/.test(text)) return true;
-  if (/^\[20\d\d-/.test(text)) return true;
-  return false;
+const seenTimestamps = new Set();
+let pollTimer = null;
+
+function startPolling(id) {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => {
+    if (activeId === id) loadConversation(id, true);
+  }, 3000);
 }
 
-async function loadHistory(id) {
-  logOutput.innerHTML = '';
-  seenTimestamps.clear();
+async function loadConversation(id, incremental) {
+  if (!incremental) {
+    logOutput.innerHTML = '';
+    seenTimestamps.clear();
+  }
   try {
     const res = await fetch(`/api/workspaces/${id}/conversation`);
     if (!res.ok) return;
     const entries = await res.json();
     for (const entry of entries) {
+      if (seenTimestamps.has(entry.timestamp)) continue;
       seenTimestamps.add(entry.timestamp);
       appendConversationEntry(entry);
     }
   } catch {}
 }
 
-const seenTimestamps = new Set();
-function connectSSE(id, clearHistory) {
-  if (eventSource) eventSource.close();
-  if (clearHistory) {
-    seenTimestamps.clear();
-    logOutput.innerHTML = '';
-  }
-  eventSource = new EventSource(`/api/workspaces/${id}/logs`);
-  eventSource.onmessage = (e) => {
-    // Try to parse as conversation.json entry
-    try {
-      const entry = JSON.parse(e.data);
-      if (entry.timestamp && !seenTimestamps.has(entry.timestamp)) {
-        seenTimestamps.add(entry.timestamp);
-        appendConversationEntry(entry);
-        return;
-      }
-    } catch {}
-    // Fallback: legacy plain-text SSE lines
-    appendLegacyLog(e.data);
-  };
-  eventSource.onerror = () => {
-    eventSource.close();
-    eventSource = null;
-    setTimeout(() => { if (activeId === id) connectSSE(id, false); }, 2000);
-  };
+function formatTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 function appendConversationEntry(entry) {
   const atBottom = logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight < 40;
-  const el = document.createElement('div');
   const typeClassMap = { prompt: 'prompt-msg', dm: 'dm-msg', response: 'response-msg', system: 'system-msg' };
-  el.className = typeClassMap[entry.type] || 'response-msg';
-  const prefix = entry.from && entry.type !== 'system' ? `[${entry.from}] ` : '';
-  el.textContent = prefix + entry.message;
-  logOutput.appendChild(el);
-  if (atBottom) logContainer.scrollTop = logContainer.scrollHeight;
-}
+  const typeClass = typeClassMap[entry.type] || 'response-msg';
+  const senderClass = typeClass.replace('-msg', '-sender');
 
-function appendLegacyLog(text) {
-  if (text.startsWith('▶ Prompt:') || text.startsWith('▶ You:')) {
-    // prompt
-  } else if (text.startsWith('▶ ')) {
-    // dm
-  } else if (text.startsWith('◀ ')) {
-    // response
-  } else {
-    return;
-  }
-  const atBottom = logContainer.scrollHeight - logContainer.scrollTop - logContainer.clientHeight < 40;
   const el = document.createElement('div');
-  if (text.startsWith('▶ Prompt:') || text.startsWith('▶ You:')) {
-    el.className = 'prompt-msg';
-    el.textContent = text;
-  } else if (text.startsWith('▶ ')) {
-    el.className = 'dm-msg';
-    el.textContent = text;
-  } else if (text.startsWith('◀ ')) {
-    el.className = 'response-msg';
-    el.textContent = text.slice(2);
-  }
+  el.className = 'chat-entry ' + typeClass;
+
+  const meta = document.createElement('div');
+  meta.className = 'chat-meta';
+
+  const time = document.createElement('span');
+  time.className = 'chat-time';
+  time.textContent = formatTime(entry.timestamp);
+
+  const sender = document.createElement('span');
+  sender.className = 'chat-sender ' + senderClass;
+  sender.textContent = entry.from || entry.type;
+
+  meta.appendChild(time);
+  meta.appendChild(sender);
+
+  const body = document.createElement('div');
+  body.className = 'chat-body';
+  body.textContent = entry.message;
+
+  el.appendChild(meta);
+  el.appendChild(body);
   logOutput.appendChild(el);
   if (atBottom) logContainer.scrollTop = logContainer.scrollHeight;
 }
@@ -274,10 +262,10 @@ async function sendMessage() {
       body: JSON.stringify({ message: msg }),
     });
     if (!res.ok) {
-      appendConversationEntry({ type: 'system', from: 'system', message: `✗ Failed to send: ${res.status}` });
+      appendConversationEntry({ type: 'system', from: 'system', message: `✗ Failed to send: ${res.status}`, timestamp: Date.now() });
     }
   } catch (e) {
-    appendConversationEntry({ type: 'system', from: 'system', message: `✗ Failed to send: ${e.message}` });
+    appendConversationEntry({ type: 'system', from: 'system', message: `✗ Failed to send: ${e.message}`, timestamp: Date.now() });
   }
   sendBtn.disabled = false;
   msgInput.focus();
